@@ -395,7 +395,7 @@ vec3 applyReinhardTonemap(vec3 x)
 vec4 shade(V2F inputs) 
 {
 	vec3 tangent_base_normal = normalUnpack(texture(base_normal_texture, inputs.tex_coord), base_normal_y_coeff);
-	vec3 tangent_height_normal = normalFromHeight(inputs.tex_coord, height_force);
+	vec3 tangent_height_normal = normalFromHeight(inputs.tex_coord, 1.0);
 	vec3 tangent_blended_normal = normalBlend(tangent_base_normal, tangent_height_normal);
 
 	vec3 world_normal = normalize(
