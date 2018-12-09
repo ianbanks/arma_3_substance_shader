@@ -77,40 +77,40 @@ uniform float fresnel_k_constant;
 uniform float environment_max_lod;
 
 //: param auto channel_specularlevel
-uniform sampler2D specularlevel_tex;
+uniform SamplerSparse specularlevel_tex;
 
 //: param auto channel_glossiness
-uniform sampler2D glossiness_tex;
+uniform SamplerSparse glossiness_tex;
 
 //: param auto channel_basecolor
-uniform sampler2D basecolor_tex;
+uniform SamplerSparse basecolor_tex;
 
 //: param auto channel_user0
-uniform sampler2D ambient_shadow_green_tex;
+uniform SamplerSparse ambient_shadow_green_tex;
 
 //: param auto channel_user0_is_set
 uniform bool ambient_shadow_green_is_set;
 
 //: param auto channel_user1
-uniform sampler2D ambient_shadow_blue_tex;
+uniform SamplerSparse ambient_shadow_blue_tex;
 
 //: param auto channel_user1_is_set
 uniform bool ambient_shadow_blue_is_set;
 
 //: param auto channel_user2
-uniform sampler2D macro_tex;
+uniform SamplerSparse macro_tex;
 
 //: param auto channel_user2_is_set
 uniform bool macro_is_set;
 
 //: param auto channel_user3
-uniform sampler2D detail_tex;
+uniform SamplerSparse detail_tex;
 
 //: param auto channel_user3_is_set
 uniform bool detail_is_set;
 
 //: param auto channel_user4
-uniform sampler2D macro_alpha_tex;
+uniform SamplerSparse macro_alpha_tex;
 
 //: param auto channel_user4_is_set
 uniform bool macro_alpha_is_set;
@@ -300,7 +300,7 @@ vec4 environmentSampleSelectedMap(vec2 sample_coordinates, float specular_power_
 	}
 }
 
-vec3 environmentSample(vec3 world_reflection, vec2 tex_coord, float specular_exponent)
+vec3 environmentSample(vec3 world_reflection, SparseCoord tex_coord, float specular_exponent)
 {
 	float maximum_specular_power = 1000.0;
 	float specular_power_to_mip_exponent = 10.0;
@@ -392,10 +392,10 @@ vec3 applyReinhardTonemap(vec3 x)
 	return clamp(scale * x, 0.0, 1.0);
 }
 
-vec4 shade(V2F inputs) 
+void shade(V2F inputs) 
 {
-	vec3 tangent_base_normal = normalUnpack(texture(base_normal_texture, inputs.tex_coord), base_normal_y_coeff);
-	vec3 tangent_height_normal = normalFromHeight(inputs.tex_coord, 1.0);
+	vec3 tangent_base_normal = normalUnpack(textureSparse(base_normal_texture, inputs.sparse_coord), base_normal_y_coeff);
+	vec3 tangent_height_normal = normalFromHeight(inputs.sparse_coord, 1.0);
 	vec3 tangent_blended_normal = normalBlend(tangent_base_normal, tangent_height_normal);
 
 	vec3 world_normal = normalize(
@@ -408,7 +408,7 @@ vec4 shade(V2F inputs)
 
 	vec3 world_reflection = reflect(-world_eye, world_normal);
 
-	float specular_channel = texture(specularlevel_tex, inputs.tex_coord).x;
+	float specular_channel = textureSparse(specularlevel_tex, inputs.sparse_coord).x;
 
 	float eye_incidence = dot(world_normal, world_reflection);
 	float raw_fresnel = fresnelSample(eye_incidence);
@@ -429,7 +429,7 @@ vec4 shade(V2F inputs)
 
 	float normal_dot_half = dot(world_normal, world_half);
 
-	float specular_power_channel = texture(glossiness_tex, inputs.tex_coord).x;
+	float specular_power_channel = textureSparse(glossiness_tex, inputs.sparse_coord).x;
 	float specular_exponent = specular_power_constant * specular_power_channel;
 
 	float diffuse_lit_coefficient = max(normal_dot_light, 0.0);
@@ -443,59 +443,66 @@ vec4 shade(V2F inputs)
 	vec3 unknown_ambient = vec3(0, 0, 0);
 
 	float ambient_shadow_channel =
-		ambient_shadow_green_is_set ? texture(ambient_shadow_green_tex, inputs.tex_coord).x : 1.0;
+		ambient_shadow_green_is_set ? textureSparse(ambient_shadow_green_tex, inputs.sparse_coord).x : 1.0;
 
 	vec3 output_indirect = unknown_ambient + (ambient_and_emissive + back_facing_diffuse) *
 		ambient_shadow_channel;
 
 	vec3 output_direct = lighting.PSC_DForced + lighting.PSC_Diffuse * diffuse_lit_coefficient * (1.0 - fresnel);
 	vec3 output_specular = lighting.PSC_Specular * specular_lit_coefficient * fresnel;
-	vec3 environment_value = environmentSample(world_reflection, inputs.tex_coord, specular_exponent);
+	vec3 environment_value = environmentSample(world_reflection, inputs.sparse_coord, specular_exponent);
 	vec3 output_specular_environment = lighting.PSC_GlassMatSpecular * 2.0 * fresnel *
 		environment_value;
 
-	vec3 base_sample = texture(basecolor_tex, inputs.tex_coord).xyz;
+	vec3 base_sample = textureSparse(basecolor_tex, inputs.sparse_coord).xyz;
 	vec4 macro_sample =
-		macro_is_set ? texture(macro_tex, inputs.tex_coord) : vec4(0, 0, 0, 0);
+		macro_is_set ? textureSparse(macro_tex, inputs.sparse_coord) : vec4(0, 0, 0, 0);
 	float macro_alpha_sample = 
-		macro_alpha_is_set ? texture(macro_alpha_tex, inputs.tex_coord).x : 0.0;
-	vec3 detail_sample = detail_is_set ? texture(detail_tex, inputs.tex_coord).rgb : vec3(0.5, 0.5, 0.5);
+		macro_alpha_is_set ? textureSparse(macro_alpha_tex, inputs.sparse_coord).x : 0.0;
+	vec3 detail_sample = detail_is_set ? textureSparse(detail_tex, inputs.sparse_coord).rgb : vec3(0.5, 0.5, 0.5);
 
 	vec3 output_colour = mix(base_sample, macro_sample.rgb, macro_alpha_sample) * 2.0 * detail_sample;
 
 	float direct_shadow_channel =
-		ambient_shadow_blue_is_set ? texture(ambient_shadow_blue_tex, inputs.tex_coord).x : 1.0;
+		ambient_shadow_blue_is_set ? textureSparse(ambient_shadow_blue_tex, inputs.sparse_coord).x : 1.0;
 
 	vec3 non_specular_result = (output_indirect + output_direct * direct_shadow_channel) * output_colour;
 	vec3 specular_result = output_specular * direct_shadow_channel + output_specular_environment;
-
+	
 	vec3 material_result = non_specular_result + specular_result;
 
 	switch (preview_mode)
 	{
 		case 0:
-			return vec4(applyFilmicTonemap(material_result), 1.0);
+			diffuseShadingOutput(applyFilmicTonemap(material_result));
+			break;
 
 		case 1:
-			return vec4(applyReinhardTonemap(material_result), 1.0);
+			diffuseShadingOutput(applyReinhardTonemap(material_result));
+			break;
 
 		case 2:
-			return vec4(material_result, 1.0);
+			diffuseShadingOutput(material_result);
+			break;
 
 		case 3:
-			return vec4(vec3(specular_lit_coefficient * fresnel), 1.0);
+			diffuseShadingOutput(vec3(specular_lit_coefficient * fresnel));
+			break;
 
 		case 4:
-			return vec4(vec3(raw_fresnel), 1.0);
+			diffuseShadingOutput(vec3(raw_fresnel));
+			break;
 
 		case 5:
-			return vec4(vec3(eye_incidence), 1.0);
+			diffuseShadingOutput(vec3(eye_incidence));
+			break;
 
 		case 6:
-			return vec4(world_normal, 1.0);
+			diffuseShadingOutput(world_normal);
+			break;
 
 		case 7:
-			return vec4(environment_value, 1.0);
+			diffuseShadingOutput(environment_value);
+			break;
 	}
 }
-
