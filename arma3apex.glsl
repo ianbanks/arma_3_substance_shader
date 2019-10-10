@@ -1,5 +1,5 @@
-// Tested with Substance 2.5.3.
-//
+// Tested with Substance Painter, version 2018.3.2 Build 2768
+// 
 // A preview GLSL shader for the "Super" shader. Written by IanBanks on the Bohemia
 // Interactive Forums.
 //
@@ -9,7 +9,7 @@
 //
 // The channels used are:
 // 
-//     Base Color (_co) [sRGB]
+//     Diffuse (_co) [sRGB]
 //     Height (_nohq) [L]
 //     Specular level (_smdi) [L]
 //     Glossiness (_smdi) [L]
@@ -82,8 +82,8 @@ uniform SamplerSparse specularlevel_tex;
 //: param auto channel_glossiness
 uniform SamplerSparse glossiness_tex;
 
-//: param auto channel_basecolor
-uniform SamplerSparse basecolor_tex;
+//: param auto channel_diffuse
+uniform SamplerSparse diffuse_tex;
 
 //: param auto channel_user0
 uniform SamplerSparse ambient_shadow_green_tex;
@@ -451,12 +451,11 @@ void shade(V2F inputs)
 	vec3 output_direct = lighting.PSC_DForced + lighting.PSC_Diffuse * diffuse_lit_coefficient * (1.0 - fresnel);
 	vec3 output_specular = lighting.PSC_Specular * specular_lit_coefficient * fresnel;
 	vec3 environment_value = environmentSample(world_reflection, inputs.sparse_coord, specular_exponent);
-	vec3 output_specular_environment = lighting.PSC_GlassMatSpecular * 2.0 * fresnel *
-		environment_value;
+	vec3 output_specular_environment = lighting.PSC_GlassMatSpecular * 2.0 * fresnel * environment_value;
 
-	vec3 base_sample = textureSparse(basecolor_tex, inputs.sparse_coord).xyz;
-	vec4 macro_sample =
-		macro_is_set ? textureSparse(macro_tex, inputs.sparse_coord) : vec4(0, 0, 0, 0);
+	vec3 base_sample = textureSparse(diffuse_tex, inputs.sparse_coord).xyz;
+	vec4 macro_sample =	macro_is_set ? textureSparse(macro_tex, inputs.sparse_coord) : vec4(0, 0, 0, 0);
+    
 	float macro_alpha_sample = 
 		macro_alpha_is_set ? textureSparse(macro_alpha_tex, inputs.sparse_coord).x : 0.0;
 	vec3 detail_sample = detail_is_set ? textureSparse(detail_tex, inputs.sparse_coord).rgb : vec3(0.5, 0.5, 0.5);
