@@ -9,7 +9,7 @@
 //
 // The channels used are:
 // 
-//     Base Color (_co) [sRGB]
+//     Diffuse (_co) [sRGB]
 //     Height (_nohq) [L]
 //     Specular level (_smdi) [L]
 //     Glossiness (_smdi) [L]
@@ -82,8 +82,8 @@ uniform SamplerSparse specularlevel_tex;
 //: param auto channel_glossiness
 uniform SamplerSparse glossiness_tex;
 
-//: param auto channel_basecolor
-uniform SamplerSparse basecolor_tex;
+//: param auto channel_diffuse
+uniform SamplerSparse diffuse_tex;
 
 //: param auto channel_user0
 uniform SamplerSparse ambient_shadow_green_tex;
@@ -454,7 +454,7 @@ void shade(V2F inputs)
 	vec3 output_specular_environment = lighting.PSC_GlassMatSpecular * 2.0 * fresnel *
 		environment_value;
 
-	vec3 base_sample = textureSparse(basecolor_tex, inputs.sparse_coord).xyz;
+	vec3 base_sample = textureSparse(diffuse_tex, inputs.sparse_coord).xyz;
 	vec4 macro_sample =
 		macro_is_set ? textureSparse(macro_tex, inputs.sparse_coord) : vec4(0, 0, 0, 0);
 	float macro_alpha_sample = 
